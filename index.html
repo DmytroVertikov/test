@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Клиенты и сроки резиденций</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one window. Client list left, tabs + client card center, contact panel right. No dialogs. */
+:root{
+  --bg:#f4f5f3; --surface:#ffffff; --ink:#18232b; --muted:#5d6b75; --line:#dde2e0; --sel:#e8eff1;
+  --accent:#1c5566; --accent-ink:#ffffff; --accent-soft:#e1eef1;
+  --crit:#b3261e; --crit-soft:#fbe7e5;
+  --warn:#8a5a00; --warn-soft:#fbefd2;
+  --good:#256b3d; --good-soft:#e1f2e6;
+  --info:#3d5a80; --info-soft:#e6ecf5;
+  --font:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#11181d; --surface:#192228; --ink:#e7edf0; --muted:#98a7b0; --line:#2a373f; --sel:#203038;
+    --accent:#6fb7c9; --accent-ink:#0c1a20; --accent-soft:#1d3640;
+    --crit:#ff8c84; --crit-soft:#3a1f1d;
+    --warn:#f0c36a; --warn-soft:#3a2f14;
+    --good:#7fcf98; --good-soft:#1b3324;
+    --info:#9ab6dc; --info-soft:#202c3d;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11181d; --surface:#192228; --ink:#e7edf0; --muted:#98a7b0; --line:#2a373f; --sel:#203038;
+  --accent:#6fb7c9; --accent-ink:#0c1a20; --accent-soft:#1d3640;
+  --crit:#ff8c84; --crit-soft:#3a1f1d;
+  --warn:#f0c36a; --warn-soft:#3a2f14;
+  --good:#7fcf98; --good-soft:#1b3324;
+  --info:#9ab6dc; --info-soft:#202c3d;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.app{height:100%;display:flex;flex-direction:column;background:var(--surface)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.logo{font-weight:700;font-size:17px;letter-spacing:-.01em}
+.demo{font-size:12.5px;background:var(--warn-soft);color:var(--warn);padding:3px 10px;border-radius:999px;font-weight:600}
+.body{flex:1;min-height:0;display:grid;grid-template-columns:340px minmax(0,1fr) 300px}
+.body.noright{grid-template-columns:340px minmax(0,1fr)}
+.left{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--surface)}
+.lt{padding:12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.chip{border:1px solid var(--line);background:transparent;border-radius:8px;padding:4px 9px;font-size:13px;cursor:pointer;color:var(--muted)}
+.chip:hover{background:var(--sel)}
+.chip[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-weight:600}
+.lt input[type=search],.newrow input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.btn.small{padding:4px 10px;font-size:13px;border-radius:6px}
+.list{flex:1;overflow-y:auto}
+.newrow{padding:10px 12px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
+.newrow small{display:block;color:var(--muted);margin-top:4px}
+.item{display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);padding:11px 14px;cursor:pointer}
+.item:hover{background:var(--sel)}
+.item.active{background:var(--sel);box-shadow:inset 3px 0 0 var(--accent)}
+.r1{display:flex;justify-content:space-between;gap:8px}
+.nm{font-weight:600}
+.dt{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.r2{color:var(--muted);font-size:13.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r3{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:5px;font-size:12.5px}
+.step-t{font-weight:600}
+.step-t.crit{color:var(--crit)} .step-t.warn{color:var(--warn)} .step-t.none{color:var(--warn)} .step-t.ok{color:var(--muted);font-weight:500}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.pill.crit{background:var(--crit-soft);color:var(--crit)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.info{background:var(--info-soft);color:var(--info)}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.none{background:var(--bg);color:var(--muted)}
+.center{display:flex;flex-direction:column;min-height:0;min-width:0}
+.tabs{display:flex;gap:2px;padding:8px 12px 0;border-bottom:1px solid var(--line);overflow-x:auto;background:var(--bg)}
+.tab{display:flex;align-items:center;gap:6px;padding:7px 8px 7px 12px;border:1px solid var(--line);border-bottom:0;border-radius:8px 8px 0 0;background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap;font-size:14px}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);font-weight:600;position:relative;top:1px}
+.tab .x{border:0;background:transparent;border-radius:4px;width:20px;height:20px;line-height:1;cursor:pointer;color:var(--muted)}
+.tab .x:hover{background:var(--sel);color:var(--ink)}
+.tab .bd{background:var(--crit);color:#fff;border-radius:999px;font-size:11px;padding:0 6px;font-weight:700}
+.scroll{flex:1;overflow-y:auto;padding:20px 24px}
+.scroll h1{margin:0;font-size:22px;line-height:1.2;font-weight:700;text-wrap:balance}
+.sub{color:var(--muted);margin:3px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-top:12px}
+.meta label{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:13.5px}
+.inl{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 8px;min-width:0}
+.next{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.next b{font-size:13.5px;color:var(--muted);font-weight:500}
+.next input{flex:1 1 220px}
+h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:20px 0 8px;font-weight:600}
+.steps{list-style:none;margin:0;padding:0}
+.step{display:grid;grid-template-columns:22px 1fr;gap:10px;padding-bottom:14px;position:relative}
+.step::before{content:"";position:absolute;left:10px;top:22px;bottom:0;width:2px;background:var(--line)}
+.step:last-child::before{display:none}
+.dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;font-size:12px}
+.step.done .dot{background:var(--good);border-color:var(--good);color:var(--surface)}
+.step.now .dot{border-color:var(--accent);background:var(--accent-soft)}
+.step b{display:block;font-size:14.5px}
+.small-t{color:var(--muted);font-size:13px}
+.inline{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;align-items:flex-end}
+.inline label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:10px;background:var(--surface)}
+.card .h{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12.5px;margin-bottom:2px}
+.card.ev{background:var(--bg)}
+.msg{background:var(--bg);border:1px dashed var(--line);border-radius:8px;padding:8px 10px;font-size:13.5px;margin:6px 0 8px}
+.msg small{display:block;color:var(--muted);margin-bottom:3px}
+.actions{display:flex;flex-wrap:wrap;gap:6px}
+.composer{display:flex;gap:10px;padding:12px 24px;border-top:1px solid var(--line);background:var(--surface)}
+.composer textarea{flex:1;resize:none;height:44px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.right{border-left:1px solid var(--line);overflow-y:auto;padding:18px 16px;min-height:0}
+.right h4{margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.blk{margin-bottom:20px}
+.blk label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.blk .inl{width:100%;color:var(--ink)}
+.rem{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0}
+.rem.past{color:var(--muted);text-decoration:line-through}
+.rem.cur{font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0 4px}
+.tile{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer}
+.tile:hover{background:var(--sel)}
+.tile[aria-pressed="true"]{background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent)}
+.tile b{display:block;font-size:26px;line-height:1.1}
+.tile span{color:var(--muted);font-size:13px}
+.tile.crit{border-left-color:var(--crit)} .tile.crit b{color:var(--crit)}
+.tile.warn{border-left-color:var(--warn)} .tile.warn b{color:var(--warn)}
+.tile.info{border-left-color:var(--info)} .tile.good{border-left-color:var(--good)}
+.note{border-left:4px solid var(--line)}
+.note.crit{border-left-color:var(--crit)} .note.warn{border-left-color:var(--warn)} .note.info{border-left-color:var(--info)}
+.note.done{opacity:.55}
+.note h5{margin:0 0 2px;font-size:14.5px}
+.empty{padding:24px 8px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+.toast.show{opacity:1}
+@media (max-width:1100px){.body,.body.noright{grid-template-columns:300px minmax(0,1fr)}.right{display:none}.tiles{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:760px){
+  html,body{height:auto}.app{height:auto}
+  .body,.body.noright{display:block}
+  .left{border-right:0;border-bottom:1px solid var(--line)}.list{max-height:320px}
+  .right{display:block;border-left:0;border-top:1px solid var(--line)}
+  .scroll{padding:16px}.composer{padding:12px 16px}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><span class="logo">Резиденции</span><span class="demo">Демо: примерные данные, ничего не отправляется</span></div>
+  <div class="body" id="body">
+    <aside class="left" aria-label="Клиенты">
+      <div class="lt">
+        <div class="seg" id="seg"></div>
+        <input type="search" id="q" placeholder="Поиск по фамилии или номеру" aria-label="Поиск">
+        <button class="btn" id="addBtn" type="button">+ Новый клиент</button>
+      </div>
+      <div class="list" id="list"></div>
+    </aside>
+    <main class="center">
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <div class="scroll" id="main"></div>
+      <div class="composer" id="composer" hidden>
+        <textarea id="noteIn" placeholder="Добавить примечание… (Ctrl+Enter, чтобы сохранить)" aria-label="Примечание"></textarea>
+        <button class="btn" id="noteBtn" type="button">Добавить</button>
+      </div>
+    </main>
+    <aside class="right" id="right" aria-label="Контакт"></aside>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  var DAY=86400000;
+  function sod(d){var x=new Date(d);x.setHours(0,0,0,0);return x;}
+  var TODAY=sod(new Date());
+  function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function off(n){return iso(new Date(TODAY.getTime()+n*DAY));}
+  function parse(s){if(!s)return null;var p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+  function diff(s){return Math.round((parse(s)-TODAY)/DAY);}
+  function fmt(s){return s?parse(s).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'}):'';}
+  function fmtS(s){return s?parse(s).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}):'';}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function plural(n,a,b,c){var m=Math.abs(n)%100,k=m%10;if(m>10&&m<20)return c;if(k>1&&k<5)return b;if(k===1)return a;return c;}
+  function days(n){return n+' '+plural(n,'день','дня','дней');}
+  function $(id){return document.getElementById(id);}
+
+  var TYPES=['Первичная подача','Продление','Модификация','Воссоединение семьи'];
+  var nextNum=1042,nextId=20;
+  function N(t,text,d){return {t:t,text:text,date:off(d)};}
+  var clients=[
+    {id:1,num:1031,name:'Иванова Мария',phone:'+34 611 000 101',expiry:off(75),cs:{type:'Продление',filed:off(-40),reqRecv:off(-12),reqDue:off(3),answered:null,result:null},notes:[N('note','Клиентка прислала новый padrón, нужно приложить к ответу.',-11),N('note','Договорились созвониться в среду по списку документов.',-4)]},
+    {id:2,num:1034,name:'Петров Алексей',phone:'+34 611 000 102',expiry:null,cs:{type:'Первичная подача',filed:off(-95),reqRecv:null,reqDue:null,answered:null,result:null},notes:[N('note','Подали через сеть. Ведомство пока молчит.',-95)]},
+    {id:3,num:1029,name:'Смирнова Ольга',phone:'+34 611 000 103',expiry:off(28),cs:null,notes:[N('note','Работает по контракту, документы от работодателя будут к концу месяца.',-20)]},
+    {id:4,num:1022,name:'Козлов Дмитрий',phone:'+34 611 000 104',expiry:off(96),cs:null,notes:[]},
+    {id:5,num:1017,name:'Назарова Елена',phone:'+34 611 000 105',expiry:off(210),cs:null,notes:[]},
+    {id:6,num:1038,name:'Кузнецов Игорь',phone:'+34 611 000 106',expiry:off(50),cs:{type:'Модификация',filed:off(-8),reqRecv:null,reqDue:null,answered:null,result:null},notes:[]},
+    {id:7,num:1026,name:'Белова Анна',phone:'+34 611 000 107',expiry:off(330),cs:{type:'Продление',filed:off(-60),reqRecv:off(-30),reqDue:off(-16),answered:off(-18),result:null},notes:[N('note','Ответ ушёл заранее, ждём решение.',-18)]},
+    {id:8,num:1011,name:'Орлов Сергей',phone:'+34 611 000 108',expiry:off(-5),cs:null,notes:[N('note','Клиент не отвечал на сообщения. Попробовать позвонить.',-9)]},
+    {id:9,num:1008,name:'Фёдорова Ксения',phone:'+34 611 000 109',expiry:off(400),cs:{type:'Продление',filed:off(-150),reqRecv:off(-100),reqDue:off(-85),answered:off(-90),result:{text:'Одобрено',date:off(-10)}},notes:[]},
+    {id:10,num:1040,name:'Тихонов Павел',phone:'+34 611 000 110',expiry:off(150),cs:{type:'Первичная подача',filed:off(-30),reqRecv:off(-3),reqDue:off(9),answered:null,result:null},notes:[]}
+  ];
+  clients.forEach(function(c){c.next='';c.draft='';});
+  var sent={},tabs=[],active='today',filter='all',adding=false;
+
+  function byId(id){return clients.filter(function(c){return c.id===id;})[0];}
+  function first(c){var p=c.name.split(' ');return p[1]||p[0];}
+  function stage(c){var k=c.cs;if(!k)return 'none';if(k.result)return 'closed';if(k.reqRecv&&!k.answered)return 'answer';if(k.answered)return 'decision';return 'wait';}
+  function status(c){
+    var s=stage(c),e=c.expiry?diff(c.expiry):null;
+    if(s==='answer'){var d=diff(c.cs.reqDue);return {k:d<0?'crit':d<=10?'warn':'info',t:d<0?'Срок ответа прошёл':'Нужно ответить',f:'answer'};}
+    if(s==='decision')return {k:'info',t:'Ждём решения',f:'wait'};
+    if(s==='wait')return {k:'info',t:'Ждём ответа ведомства',f:'wait'};
+    if(s==='closed')return {k:'good',t:'Решение: '+c.cs.result.text,f:'closed'};
+    if(e!==null&&e<0)return {k:'crit',t:'Срок резиденции истёк',f:'renew'};
+    if(e!==null&&e<=120)return {k:e<=45?'crit':'warn',t:'Пора подавать на продление',f:'renew'};
+    return {k:'none',t:'Всё в порядке',f:'ok'};
+  }
+  function derived(c){
+    var s=stage(c),e=c.expiry?diff(c.expiry):null;
+    if(s==='answer')return {t:'Ответить на запрос до '+fmt(c.cs.reqDue),k:diff(c.cs.reqDue)<=3?'crit':'warn'};
+    if(s==='wait')return {t:'Ждать ответа ведомства',k:'ok'};
+    if(s==='decision')return {t:'Ждать решения',k:'ok'};
+    if(s==='closed')return {t:c.cs.result.text==='Одобрено'?'Обновить срок резиденции':'Обсудить результат с клиентом',k:'warn'};
+    if(e!==null&&e<=120)return {t:'Связаться с клиентом: готовим продление',k:e<=45?'crit':'warn'};
+    return null;
+  }
+  function stepOf(c){if(c.next)return {t:c.next,k:'ok'};return derived(c)||{t:'нет шага',k:'none'};}
+  function lastDate(c){var d=c.notes.length?c.notes[c.notes.length-1].date:(c.cs?c.cs.filed:null);return d;}
+
+  function notes(){
+    var out=[];
+    clients.forEach(function(c){
+      var s=stage(c),e=c.expiry?diff(c.expiry):null;
+      if(s==='answer'){var d=diff(c.cs.reqDue);
+        if(d<=10)out.push({id:c.id+'-req',cid:c.id,sev:d<0?'crit':d<=3?'warn':'info',left:d,kind:'internal',
+          title:c.name+': ответить на запрос',
+          text:(d<0?'Срок истёк '+days(-d)+' назад ('+fmt(c.cs.reqDue)+').':'Срок ответа '+fmt(c.cs.reqDue)+', осталось '+days(d)+'.')+' Дело №'+c.num+', '+c.cs.type.toLowerCase()+'.'});}
+      if(!c.cs&&e!==null&&e<=120){
+        var tier=e<0?'x':e<=30?'30':e<=60?'60':e<=90?'90':'120';
+        var msg=e<0?'Здравствуйте, '+first(c)+'! Срок вашей резиденции истёк '+fmt(c.expiry)+'. Нужно срочно связаться и понять, что можно сделать. Напишите, когда удобно говорить.'
+          :'Здравствуйте, '+first(c)+'! Ваша резиденция действует до '+fmt(c.expiry)+' (осталось '+days(e)+'). Пора готовить документы на продление. Напишите, когда удобно обсудить.';
+        out.push({id:c.id+'-exp-'+tier,cid:c.id,sev:e<=30?'crit':e<=60?'warn':'info',left:e,kind:'client',
+          title:c.name+': подходит срок резиденции',text:e<0?'Срок истёк '+days(-e)+' назад.':'Осталось '+days(e)+' (до '+fmt(c.expiry)+'). Подача на продление ещё не открыта.',msg:msg});}
+    });
+    out.sort(function(a,b){return a.left-b.left;});return out;
+  }
+  function urgentCount(){return notes().filter(function(x){return x.sev==='crit'&&!sent[x.id];}).length;}
+
+  function toast(t){var el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(function(){el.classList.remove('show');},1800);}
+  function ev(c,text){c.notes.push({t:'event',text:text,date:iso(TODAY)});}
+  function openTab(id){if(tabs.indexOf(id)<0)tabs.push(id);active=id;render();}
+
+  /* Left: filters and list */
+  var FILTERS=[['all','Все'],['urgent','Срочные'],['answer','Ждут ответа'],['renew','Продление'],['work','В работе'],['closed','Закрытые']];
+  function matches(c,f){
+    var st=status(c),s=stage(c);
+    if(f==='all')return true;
+    if(f==='urgent')return st.k==='crit';
+    if(f==='answer')return s==='answer';
+    if(f==='renew')return st.f==='renew';
+    if(f==='work')return s!=='none'&&s!=='closed';
+    if(f==='closed')return st.f==='closed';
+    return true;
+  }
+  function feedOk(x){
+    if(filter==='urgent')return x.sev==='crit';
+    if(filter==='answer')return /-req$/.test(x.id);
+    if(filter==='renew')return x.kind==='client';
+    return true;
+  }
+  function renderSeg(){$('seg').innerHTML=FILTERS.map(function(f){return '<button class="chip" type="button" data-f="'+f[0]+'" aria-pressed="'+(filter===f[0])+'">'+f[1]+'</button>';}).join('');}
+  function renderList(){
+    var q=$('q').value.trim().toLowerCase();
+    var list=clients.filter(function(c){
+      if(q&&c.name.toLowerCase().indexOf(q)<0&&String(c.num).indexOf(q)<0)return false;
+      return matches(c,filter);
+    });
+    var order={crit:0,warn:1,info:2,good:3,none:4};
+    list.sort(function(a,b){return order[status(a).k]-order[status(b).k]||a.num-b.num;});
+    var h='';
+    if(adding)h+='<div class="newrow"><input id="newName" placeholder="Фамилия и имя, затем Enter" aria-label="Имя нового клиента"><small>Esc, чтобы отменить. Остальное заполните в карточке.</small></div>';
+    h+=list.length?list.map(function(c){
+      var st=status(c),sp=stepOf(c),ld=lastDate(c);
+      return '<button class="item'+(active===c.id?' active':'')+'" type="button" data-open="'+c.id+'"><div class="r1"><span class="nm">'+esc(c.name)+'</span><span class="dt">'+(ld?fmtS(ld):'')+'</span></div>'+
+        '<div class="r2">№'+c.num+' · '+(c.cs?esc(c.cs.type):'нет открытого дела')+'</div>'+
+        '<div class="r3"><span class="step-t '+sp.k+'">'+esc(sp.t)+'</span><span class="pill '+st.k+'">'+esc(st.t)+'</span></div></button>';
+    }).join(''):'<div class="empty">Никого не найдено</div>';
+    $('list').innerHTML=h;
+    if(adding){var ni=$('newName');if(ni)ni.focus();}
+  }
+
+  /* Tabs */
+  function renderTabs(){
+    var u=urgentCount();
+    var h='<button class="tab" role="tab" type="button" data-tab="today" aria-selected="'+(active==='today')+'">Сегодня'+(u?' <span class="bd">'+u+'</span>':'')+'</button>';
+    tabs.forEach(function(id){var c=byId(id);h+='<span class="tab" role="tab" tabindex="0" data-tab="'+id+'" aria-selected="'+(active===id)+'">'+esc(c.name)+' <button class="x" type="button" data-close="'+id+'" aria-label="Закрыть вкладку">×</button></span>';});
+    $('tabs').innerHTML=h;
+  }
+
+  /* Center: Today */
+  function feedCard(x){
+    var d=!!sent[x.id];
+    return '<div class="card note '+x.sev+(d?' done':'')+'"><h5>'+esc(x.title)+'</h5><div class="small-t">'+esc(x.text)+'</div>'+
+      (x.kind==='client'?'<div class="msg"><small>Сообщение клиенту в WhatsApp или Telegram</small>'+esc(x.msg)+'</div>':'<div style="height:8px"></div>')+
+      '<div class="actions">'+(x.kind==='client'?'<button class="btn small" data-copy="'+x.id+'" type="button">Скопировать текст</button><button class="btn small ghost" data-sent="'+x.id+'" type="button">'+(d?'Вернуть в список':'Отметить отправленным')+'</button>':'')+
+      '<button class="btn small ghost" data-open="'+x.cid+'" type="button">Открыть клиента</button></div></div>';
+  }
+  function renderToday(){
+    function cnt(f){return clients.filter(function(c){return matches(c,f);}).length;}
+    function tile(f,cls,label){return '<button class="tile '+cls+'" type="button" data-tf="'+f+'" aria-pressed="'+(filter===f)+'"><b>'+cnt(f)+'</b><span>'+label+'</span></button>';}
+    var n=notes().filter(feedOk);
+    var h='<h1>Сегодня</h1><p class="sub">'+TODAY.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})+'. Нажмите на плитку, чтобы отфильтровать список слева и ленту.</p>';
+    h+='<div class="tiles">'+tile('urgent','crit','Срочно: просрочено или меньше 45 дней')+tile('answer','warn','Ждут нашего ответа ведомству')+tile('renew','info','Резиденция истекает за 120 дней')+tile('work','good','Дел в работе')+'</div>';
+    h+='<h3 class="sec">Что требует внимания</h3>';
+    h+=n.length?n.map(feedCard).join(''):'<div class="empty">Срочных задач нет</div>';
+    $('main').innerHTML=h;$('composer').hidden=true;
+  }
+
+  /* Center: client card */
+  function stp(title,date,done,now,extra){return '<li class="step '+(done?'done':now?'now':'')+'"><span class="dot">'+(done?'✓':'')+'</span><div><b>'+esc(title)+'</b><span class="small-t">'+(date?fmt(date):'ещё не было')+'</span>'+extra+'</div></li>';}
+  function renderClient(c){
+    var k=c.cs,st=status(c),s=stage(c),dv=derived(c),h='';
+    h+='<h1>'+esc(c.name)+'</h1><p class="sub">Дело №'+c.num+(k?' · '+esc(k.type):' · нет открытого дела')+'</p>';
+    h+='<div class="meta"><span class="pill '+st.k+'">'+esc(st.t)+'</span>';
+    if(k)h+='<label>Тип дела <select class="inl" id="cType">'+TYPES.map(function(t){return '<option'+(t===k.type?' selected':'')+'>'+t+'</option>';}).join('')+'</select></label>';
+    h+='</div>';
+    h+='<div class="next"><b>Следующий шаг:</b><input class="inl" id="nextIn" value="'+esc(c.next)+'" placeholder="'+esc(dv?dv.t:'не задан, впишите')+'" aria-label="Следующий шаг"></div>';
+    h+='<h3 class="sec">Дело</h3>';
+    if(!k){
+      h+='<div class="inline"><label>Открыть дело<select class="inl" id="oType">'+TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select></label><label>Дата подачи<input class="inl" type="date" id="oFiled" value="'+iso(TODAY)+'"></label><button class="btn small" data-act="open" type="button">Открыть дело</button></div>';
+    }else{
+      h+='<ol class="steps">'+stp('Документы поданы',k.filed,true,false,'');
+      h+=stp('Пришёл запрос ведомства'+(k.reqRecv?', ответить до '+fmt(k.reqDue):''),k.reqRecv,!!k.reqRecv,s==='wait',
+        s==='wait'?'<div class="inline"><label>Дата запроса<input class="inl" type="date" id="rRecv" value="'+iso(TODAY)+'"></label><label>Ответить до<input class="inl" type="date" id="rDue" value="'+off(10)+'"></label><button class="btn small" data-act="req" type="button">Записать</button></div><div class="small-t" style="margin-top:4px">Запроса может не быть. Тогда сразу отметьте решение.</div>':'');
+      h+=stp('Ответ на запрос отправлен',k.answered,!!k.answered,s==='answer',
+        s==='answer'?'<div class="inline"><label>Дата ответа<input class="inl" type="date" id="aDate" value="'+iso(TODAY)+'"></label><button class="btn small" data-act="ans" type="button">Записать</button></div>':'');
+      h+=stp('Решение получено'+(k.result?': '+k.result.text:''),k.result&&k.result.date,!!k.result,s==='decision'||s==='wait',
+        !k.result&&(s==='decision'||s==='wait')?'<div class="inline"><label>Результат<select class="inl" id="dRes"><option>Одобрено</option><option>Отказ</option><option>Нужны дополнительные документы</option></select></label><label>Дата<input class="inl" type="date" id="dDate" value="'+iso(TODAY)+'"></label><button class="btn small" data-act="res" type="button">Записать</button></div>':'');
+      h+='</ol>';
+      if(k.result&&k.result.text==='Одобрено')h+='<div class="inline"><label>Новый срок резиденции<input class="inl" type="date" id="newExp" value="'+(c.expiry||'')+'"></label><button class="btn small" data-act="exp" type="button">Обновить срок и закрыть дело</button></div>';
+    }
+    var rn=notes().filter(function(x){return x.cid===c.id&&x.kind==='client';})[0];
+    if(rn){h+='<h3 class="sec">Напоминание клиенту</h3>'+feedCard(rn);}
+    h+='<h3 class="sec">История и примечания</h3>';
+    h+=c.notes.length?c.notes.map(function(n){return '<div class="card'+(n.t==='event'?' ev':'')+'"><div class="h"><span>'+(n.t==='event'?'Событие':'Примечание')+'</span><span>'+fmt(n.date)+'</span></div>'+esc(n.text)+'</div>';}).join(''):'<div class="small-t">Пока пусто. Пишите заметки внизу.</div>';
+    $('main').innerHTML=h;
+    $('composer').hidden=false;$('noteIn').value=c.draft||'';
+    var m=$('main');m.scrollTop=m.scrollTop;
+  }
+
+  /* Right panel */
+  function renderRight(){
+    var b=$('body'),r=$('right');
+    if(active==='today'){b.classList.add('noright');r.style.display='none';return;}
+    b.classList.remove('noright');r.style.display='';
+    var c=byId(active),e=c.expiry?diff(c.expiry):null;
+    var h='<div class="blk"><h4>Контакт</h4><label>Фамилия и имя<input class="inl" id="fName" value="'+esc(c.name)+'"></label><label>Телефон<input class="inl" id="fPhone" value="'+esc(c.phone)+'"></label></div>';
+    h+='<div class="blk"><h4>Резиденция</h4><label>Действует до<input class="inl" type="date" id="fExp" value="'+(c.expiry||'')+'"></label>';
+    if(c.expiry){
+      var cur=-1;[120,90,60,30].forEach(function(t,i){if(e<=t)cur=i;});
+      h+=[120,90,60,30].map(function(t,i){var d=iso(new Date(parse(c.expiry).getTime()-t*DAY));var past=diff(d)<0&&i!==cur;
+        return '<div class="rem'+(past?' past':'')+(i===cur?' cur':'')+'"><span>За '+t+' дней</span><span>'+fmt(d)+'</span></div>';}).join('');
+      h+='<div class="small-t" style="margin-top:6px">Напоминания клиенту создаются в эти даты, если дело продления не открыто.</div>';
+    }else h+='<div class="small-t">Укажите дату, и система сама рассчитает напоминания.</div>';
+    h+='</div>';
+    r.innerHTML=h;
+  }
+
+  function render(){renderSeg();renderList();renderTabs();
+    if(active==='today')renderToday();else renderClient(byId(active));
+    renderRight();}
+  function refreshAround(){renderList();renderTabs();}
+
+  /* Events */
+  function applyFilter(f){filter=f;renderSeg();renderList();if(active==='today')renderToday();}
+  $('seg').addEventListener('click',function(e){var b=e.target.closest('[data-f]');if(!b)return;applyFilter(b.getAttribute('data-f'));});
+  $('main').addEventListener('click',function(e){var t=e.target.closest('[data-tf]');if(!t)return;var f=t.getAttribute('data-tf');applyFilter(filter===f?'all':f);});
+  $('q').addEventListener('input',renderList);
+  $('addBtn').addEventListener('click',function(){adding=true;renderList();});
+  $('list').addEventListener('keydown',function(e){
+    if(e.target.id!=='newName')return;
+    if(e.key==='Escape'){adding=false;renderList();}
+    if(e.key==='Enter'){var v=e.target.value.trim();if(!v)return;
+      var c={id:nextId++,num:nextNum++,name:v,phone:'',expiry:null,cs:null,notes:[],next:'',draft:''};clients.push(c);adding=false;openTab(c.id);toast('Клиент добавлен');}
+  });
+  document.addEventListener('click',function(e){
+    var o=e.target.closest('[data-open]');if(o){openTab(+o.getAttribute('data-open'));return;}
+    var x=e.target.closest('[data-close]');if(x){var id=+x.getAttribute('data-close');tabs=tabs.filter(function(t){return t!==id;});if(active===id)active=tabs.length?tabs[tabs.length-1]:'today';render();return;}
+    var t=e.target.closest('[data-tab]');if(t&&!e.target.closest('[data-close]')){var v=t.getAttribute('data-tab');active=v==='today'?'today':+v;render();return;}
+    var sb=e.target.closest('[data-sent]');if(sb){var sid=sb.getAttribute('data-sent');sent[sid]=!sent[sid];render();return;}
+    var cb=e.target.closest('[data-copy]');if(cb){var n=notes().filter(function(z){return z.id===cb.getAttribute('data-copy');})[0];
+      try{navigator.clipboard.writeText(n.msg).then(function(){toast('Текст скопирован');},function(){toast('Не удалось скопировать');});}catch(err){toast('Не удалось скопировать');}return;}
+    var a=e.target.closest('[data-act]');if(a&&typeof active==='number'){act(a.getAttribute('data-act'));}
+  });
+  document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('tab')&&e.target.hasAttribute('tabindex')){active=+e.target.getAttribute('data-tab');render();}});
+  function val(id){var el=$(id);return el?el.value:'';}
+  function act(a){
+    var c=byId(active);if(!c)return;
+    if(a==='open'){c.cs={type:val('oType'),filed:val('oFiled')||iso(TODAY),reqRecv:null,reqDue:null,answered:null,result:null};ev(c,'Открыто дело: '+c.cs.type+', подано '+fmt(c.cs.filed)+'.');toast('Дело открыто');}
+    if(a==='req'){if(!val('rRecv')||!val('rDue')){toast('Укажите обе даты');return;}c.cs.reqRecv=val('rRecv');c.cs.reqDue=val('rDue');ev(c,'Пришёл запрос ведомства. Ответить до '+fmt(c.cs.reqDue)+'.');toast('Запрос записан, напоминание создано');}
+    if(a==='ans'){c.cs.answered=val('aDate')||iso(TODAY);ev(c,'Ответ на запрос отправлен '+fmt(c.cs.answered)+'.');toast('Ответ записан');}
+    if(a==='res'){c.cs.result={text:val('dRes'),date:val('dDate')||iso(TODAY)};ev(c,'Решение: '+c.cs.result.text+'.');toast('Решение записано');}
+    if(a==='exp'){if(val('newExp'))c.expiry=val('newExp');ev(c,'Срок резиденции обновлён: до '+fmt(c.expiry)+'. Дело закрыто.');c.cs=null;toast('Срок обновлён, дело закрыто');}
+    render();
+  }
+  document.addEventListener('change',function(e){
+    var c=typeof active==='number'?byId(active):null;if(!c)return;
+    var id=e.target.id;
+    if(id==='cType'){c.cs.type=e.target.value;ev(c,'Тип дела изменён: '+c.cs.type+'.');render();}
+    if(id==='nextIn'){c.next=e.target.value.trim();render();}
+    if(id==='fName'&&e.target.value.trim()){c.name=e.target.value.trim();render();}
+    if(id==='fPhone'){c.phone=e.target.value.trim();}
+    if(id==='fExp'){c.expiry=e.target.value||null;render();}
+  });
+  $('noteIn').addEventListener('input',function(){var c=byId(active);if(c)c.draft=this.value;});
+  function addNote(){var c=byId(active),v=$('noteIn').value.trim();if(!c||!v)return;c.notes.push({t:'note',text:v,date:iso(TODAY)});c.draft='';render();var m=$('main');m.scrollTop=m.scrollHeight;$('noteIn').focus();}
+  $('noteBtn').addEventListener('click',addNote);
+  $('noteIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();addNote();}});
+
+  openTab(1);openTab(3);active='today';render();
+})();
+</script>
+</body>
+</html>
