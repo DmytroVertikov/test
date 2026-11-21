@@ -46,6 +46,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .app{height:100%;display:flex;flex-direction:column;background:var(--surface)}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line)}
 .logo{font-weight:700;font-size:17px;letter-spacing:-.01em}
+.top{flex-wrap:wrap}
+.tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-left:auto}
+.stat{font-size:12.5px;color:var(--muted);margin-right:4px}
+.stat.bad{color:var(--crit)}
+.demo[hidden]{display:none}
 .demo{font-size:12.5px;background:var(--warn-soft);color:var(--warn);padding:3px 10px;border-radius:999px;font-weight:600}
 .body{flex:1;min-height:0;display:grid;grid-template-columns:340px minmax(0,1fr) 300px}
 .body.noright{grid-template-columns:340px minmax(0,1fr)}
@@ -153,7 +158,17 @@ h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--
 </head>
 <body>
 <div class="app">
-  <div class="top"><span class="logo">Резиденции</span><span class="demo">Демо: примерные данные, ничего не отправляется</span></div>
+  <div class="top">
+    <span class="logo">Резиденции</span>
+    <span class="demo" id="demoPill">Демо-данные. Ничего не отправляется</span>
+    <span class="tools">
+      <span class="stat" id="stat"></span>
+      <button class="btn small ghost" id="expBtn" type="button">Сохранить копию</button>
+      <button class="btn small ghost" id="impBtn" type="button">Загрузить копию</button>
+      <button class="btn small ghost" id="clrBtn" type="button">Очистить базу</button>
+      <input type="file" id="impFile" accept=".json,application/json" hidden>
+    </span>
+  </div>
   <div class="body" id="body">
     <aside class="left" aria-label="Клиенты">
       <div class="lt">
@@ -209,6 +224,18 @@ h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--
   ];
   clients.forEach(function(c){c.next='';c.draft='';});
   var sent={},tabs=[],active='today',filter='all',adding=false;
+
+  /* Storage: this browser only. Backup file moves data between devices. */
+  var KEY='crm-residencias-v1',demo=true,storeOk=true,savedAt=null;
+  function snapshot(){return JSON.stringify({v:1,demo:demo,clients:clients,sent:sent,nextNum:nextNum,nextId:nextId});}
+  function apply(o){
+    if(!o||!Array.isArray(o.clients))throw new Error('bad');
+    clients=o.clients;sent=o.sent||{};nextNum=o.nextNum||1001;nextId=o.nextId||100;demo=!!o.demo;
+    clients.forEach(function(c){c.notes=c.notes||[];c.next=c.next||'';c.draft='';c.phone=c.phone||'';if(c.id>=nextId)nextId=c.id+1;});
+    tabs=[];active='today';filter='all';
+  }
+  function save(){try{localStorage.setItem(KEY,snapshot());storeOk=true;savedAt=new Date();}catch(e){storeOk=false;}}
+  function load(){try{var s=localStorage.getItem(KEY);if(s){apply(JSON.parse(s));return true;}}catch(e){}return false;}
 
   function byId(id){return clients.filter(function(c){return c.id===id;})[0];}
   function first(c){var p=c.name.split(' ');return p[1]||p[0];}
@@ -374,9 +401,15 @@ h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--
     r.innerHTML=h;
   }
 
+  function renderTop(){
+    $('demoPill').hidden=!demo;
+    var s=$('stat');
+    if(storeOk){s.className='stat';s.textContent=savedAt?'Сохранено в этом браузере, '+savedAt.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'Данные сохраняются в этом браузере';}
+    else{s.className='stat bad';s.textContent='Не сохраняется: браузер блокирует хранилище. Делайте копии в файл';}
+  }
   function render(){renderSeg();renderList();renderTabs();
     if(active==='today')renderToday();else renderClient(byId(active));
-    renderRight();}
+    renderRight();save();renderTop();}
   function refreshAround(){renderList();renderTabs();}
 
   /* Events */
@@ -417,7 +450,7 @@ h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--
     if(id==='cType'){c.cs.type=e.target.value;ev(c,'Тип дела изменён: '+c.cs.type+'.');render();}
     if(id==='nextIn'){c.next=e.target.value.trim();render();}
     if(id==='fName'&&e.target.value.trim()){c.name=e.target.value.trim();render();}
-    if(id==='fPhone'){c.phone=e.target.value.trim();}
+    if(id==='fPhone'){c.phone=e.target.value.trim();save();renderTop();}
     if(id==='fExp'){c.expiry=e.target.value||null;render();}
   });
   $('noteIn').addEventListener('input',function(){var c=byId(active);if(c)c.draft=this.value;});
@@ -425,7 +458,28 @@ h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--
   $('noteBtn').addEventListener('click',addNote);
   $('noteIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();addNote();}});
 
-  openTab(1);openTab(3);active='today';render();
+  $('expBtn').addEventListener('click',function(){
+    try{var b=new Blob([snapshot()],{type:'application/json'}),a=document.createElement('a');
+      a.href=URL.createObjectURL(b);a.download='crm-rezidencii-'+iso(TODAY)+'.json';document.body.appendChild(a);a.click();a.remove();toast('Копия сохранена в файл');}
+    catch(e){toast('Не удалось сохранить файл');}
+  });
+  $('impBtn').addEventListener('click',function(){$('impFile').click();});
+  $('impFile').addEventListener('change',function(){
+    var f=this.files&&this.files[0];if(!f)return;var inp=this;
+    var r=new FileReader();
+    r.onload=function(){try{apply(JSON.parse(r.result));render();toast('Копия загружена: клиентов '+clients.length);}catch(e){toast('Файл не подходит: это не копия базы');}inp.value='';};
+    r.readAsText(f);
+  });
+  var clrT=null;
+  $('clrBtn').addEventListener('click',function(){
+    var b=this;
+    if(!clrT){b.textContent='Точно очистить?';clrT=setTimeout(function(){b.textContent='Очистить базу';clrT=null;},3500);return;}
+    clearTimeout(clrT);clrT=null;b.textContent='Очистить базу';
+    clients=[];sent={};nextNum=1001;nextId=1;demo=false;tabs=[];active='today';filter='all';render();toast('База очищена');
+  });
+
+  if(!load()){openTab(1);openTab(3);}
+  active='today';render();
 })();
 </script>
 </body>
